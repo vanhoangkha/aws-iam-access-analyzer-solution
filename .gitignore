@@ -1,17 +1,22 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environments
+*.so
+.Python
+env/
 venv/
 .venv/
-env/
+*.egg-info/
+dist/
+build/
 
 # IDE
 .idea/
 .vscode/
 *.swp
+*.swo
+*~
 
 # OS
 .DS_Store
@@ -23,16 +28,16 @@ samconfig.toml
 
 # Logs
 *.log
-security_report.json
-
-# Node (for CDK)
-node_modules/
-cdk.out/
-*.js
-*.d.ts
-!jest.config.js
+logs/
 
 # Test
 .coverage
 htmlcov/
 .pytest_cache/
+.tox/
+
+# Secrets (never commit)
+*.pem
+*.key
+.env
+.env.local
