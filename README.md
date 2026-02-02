@@ -2,6 +2,10 @@
 
 Production-ready implementation leveraging ALL IAM Access Analyzer features for AWS security automation.
 
+## Architecture
+
+![Architecture](architecture.png)
+
 ## Overview
 
 This solution provides a comprehensive implementation of AWS IAM Access Analyzer, enabling:
