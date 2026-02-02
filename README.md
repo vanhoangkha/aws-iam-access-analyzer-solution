@@ -107,27 +107,6 @@ if result['result'] == 'FAIL':
     sys.exit(1)
 ```
 
-## Architecture
-
-```
-+------------------+     +------------------+     +-------------+
-|  IAM Access      |---->|   EventBridge    |---->|    SNS      |
-|  Analyzer        |     |   Rules          |     |  (encrypted)|
-+------------------+     +------------------+     +-------------+
-                                |
-                                v
-                         +------------------+
-                         |  Lambda Logger   |
-                         |  (audit trail)   |
-                         +------------------+
-                                |
-                                v
-                         +------------------+
-                         |  CloudWatch Logs |
-                         |  (90 day retain) |
-                         +------------------+
-```
-
 ## Documentation
 
 - [AWS IAM Access Analyzer User Guide](https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html)
