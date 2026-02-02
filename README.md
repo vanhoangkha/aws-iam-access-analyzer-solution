@@ -3,52 +3,51 @@
 [![AWS](https://img.shields.io/badge/AWS-IAM%20Access%20Analyzer-FF9900?logo=amazon-aws)](https://aws.amazon.com/iam/access-analyzer/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT--0-green.svg)](LICENSE)
-[![Security](https://img.shields.io/badge/Security-Reviewed-brightgreen)](SECURITY.md)
 
-Production-ready implementation leveraging **ALL** IAM Access Analyzer features for AWS security automation.
+Production-ready implementation leveraging ALL IAM Access Analyzer features for AWS security automation.
 
-## 🏗️ Architecture
+## Architecture
 
 ![Architecture](architecture.png)
 
-## ✨ Features
+## Features
 
 | Feature | API | Cost |
 |---------|-----|------|
-| 🔍 External Access Detection | `list_findings_v2` | **FREE** |
-| 🏢 Internal Access Detection | `list_findings_v2` | $9.00/resource/month |
-| 🚫 Unused Access Analysis | `list_findings_v2` | $0.20/identity/month |
-| ✅ Policy Validation | `validate_policy` | **FREE** |
-| 🔒 Public Access Check | `check_no_public_access` | $0.002/call |
-| 🛡️ Access Not Granted Check | `check_access_not_granted` | $0.002/call |
-| 📊 No New Access Check | `check_no_new_access` | $0.002/call |
-| 🔮 Access Preview | `create_access_preview` | **FREE** |
-| 📝 Policy Generation | `start_policy_generation` | **FREE** |
+| External Access Detection | `list_findings_v2` | FREE |
+| Internal Access Detection | `list_findings_v2` | $9.00/resource/month |
+| Unused Access Analysis | `list_findings_v2` | $0.20/identity/month |
+| Policy Validation | `validate_policy` | FREE |
+| Public Access Check | `check_no_public_access` | $0.002/call |
+| Access Not Granted Check | `check_access_not_granted` | $0.002/call |
+| No New Access Check | `check_no_new_access` | $0.002/call |
+| Access Preview | `create_access_preview` | FREE |
+| Policy Generation | `start_policy_generation` | FREE |
 
-## 📦 Supported Resources
+## Supported Resources
 
 ### External Access Analysis (15 resource types)
 
 | Category | Resources |
 |----------|-----------|
-| **Storage** | S3 Buckets, S3 Directory Buckets, EBS Snapshots, EFS |
-| **Compute** | Lambda Functions & Layers |
-| **Database** | RDS Snapshots, RDS Cluster Snapshots, DynamoDB Tables & Streams |
-| **Security** | IAM Roles, KMS Keys, Secrets Manager |
-| **Messaging** | SQS Queues, SNS Topics |
-| **Containers** | ECR Repositories |
+| Storage | S3 Buckets, S3 Directory Buckets, EBS Snapshots, EFS |
+| Compute | Lambda Functions and Layers |
+| Database | RDS Snapshots, RDS Cluster Snapshots, DynamoDB Tables and Streams |
+| Security | IAM Roles, KMS Keys, Secrets Manager |
+| Messaging | SQS Queues, SNS Topics |
+| Containers | ECR Repositories |
 
 ### Internal Access Analysis (6 resource types)
-S3 Buckets, S3 Directory Buckets, RDS Snapshots, RDS Cluster Snapshots, DynamoDB Tables & Streams
+S3 Buckets, S3 Directory Buckets, RDS Snapshots, RDS Cluster Snapshots, DynamoDB Tables and Streams
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - AWS CLI v2 configured
 - Python 3.9+
 - AWS account with IAM permissions
 
-### 1️⃣ Deploy Infrastructure
+### Deploy Infrastructure
 ```bash
 aws cloudformation deploy \
   --template-file infrastructure/access-analyzer-setup.yaml \
@@ -57,44 +56,44 @@ aws cloudformation deploy \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### 2️⃣ Run Security Scan
+### Run Security Scan
 ```bash
 pip install boto3
 python3 comprehensive_solution.py
 ```
 
-### 3️⃣ CI/CD Integration
+### CI/CD Integration
 ```bash
 python3 cicd_integration.py ./policies
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-├── 📄 comprehensive_solution.py    # Full Python SDK wrapper
-├── 📄 cicd_integration.py          # CI/CD pipeline integration
-├── 📄 security_dashboard.py        # Security findings dashboard
-├── 📁 infrastructure/
+├── comprehensive_solution.py       # Full Python SDK wrapper
+├── cicd_integration.py             # CI/CD pipeline integration
+├── security_dashboard.py           # Security findings dashboard
+├── infrastructure/
 │   └── access-analyzer-setup.yaml  # CloudFormation template
-├── 📁 .github/workflows/
+├── .github/workflows/
 │   └── policy-validation.yml       # GitHub Actions workflow
-├── 📁 01-validate-policy/          # Policy validation examples
-├── 📁 02-create-access-preview/    # Access preview examples
-├── 📁 03-no-iac/                   # Non-IaC policy scanning
-├── 📁 04-cloudformation/           # CloudFormation validation
-└── 📁 05-scps/                     # Service Control Policies
+├── 01-validate-policy/             # Policy validation examples
+├── 02-create-access-preview/       # Access preview examples
+├── 03-no-iac/                      # Non-IaC policy scanning
+├── 04-cloudformation/              # CloudFormation validation
+└── 05-scps/                        # Service Control Policies
 ```
 
-## 💰 Pricing Estimate
+## Pricing Estimate
 
 | Component | Price | Example (100 identities) |
 |-----------|-------|--------------------------|
 | External Access Analyzer | FREE | $0 |
 | Unused Access Analyzer | $0.20/identity/month | $20/month |
 | Custom Policy Checks | $0.002/call | ~$2/month |
-| **Total** | | **~$22/month** |
+| Total | | ~$22/month |
 
-## 🔧 Configuration Examples
+## Configuration Examples
 
 ### Exclude Accounts from Analysis
 ```python
@@ -121,7 +120,7 @@ if result['result'] == 'FAIL':
     sys.exit(1)
 ```
 
-## 📚 Documentation
+## Documentation
 
 | Resource | Link |
 |----------|------|
@@ -131,23 +130,19 @@ if result['result'] == 'FAIL':
 | API Reference | [AWS Docs](https://docs.aws.amazon.com/access-analyzer/latest/APIReference/) |
 | Pricing | [AWS Pricing](https://aws.amazon.com/iam/access-analyzer/pricing/) |
 
-## 📰 Related AWS Blog Posts
+## Related AWS Blog Posts
 
 - [Customize scope of unused access analysis](https://aws.amazon.com/blogs/security/customize-the-scope-of-iam-access-analyzer-unused-access-analysis/) (Jan 2025)
 - [Refine unused access using recommendations](https://aws.amazon.com/blogs/security/refine-unused-access-using-iam-access-analyzer-recommendations) (Sep 2024)
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT-0 License. See [LICENSE](LICENSE) for details.
 
-## 👤 Author
+## Author
 
 **Kha Van** - [GitHub](https://github.com/vanhoangkha)
-
----
-
-⭐ Star this repo if you find it helpful!
