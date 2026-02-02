@@ -2,68 +2,97 @@ from diagrams import Diagram, Cluster, Edge
 from diagrams.aws.security import IAMAccessAnalyzer, IAM, KMS, SecretsManager
 from diagrams.aws.integration import Eventbridge, SNS, SQS
 from diagrams.aws.compute import Lambda
-from diagrams.aws.management import Cloudwatch
-from diagrams.aws.storage import S3
+from diagrams.aws.management import Cloudwatch, CloudwatchEventTimeBased
+from diagrams.aws.storage import S3, EBS
 from diagrams.aws.devtools import Codepipeline, Codebuild
-from diagrams.aws.general import User
+from diagrams.aws.general import User, Users
 from diagrams.aws.database import RDS, DynamodbTable
+from diagrams.aws.network import CloudFront
 
 graph_attr = {
-    "fontsize": "24",
-    "bgcolor": "#f5f5f5",
-    "pad": "0.5",
+    "fontsize": "28",
+    "fontname": "Helvetica Bold",
+    "bgcolor": "white",
+    "pad": "0.8",
     "splines": "spline",
+    "nodesep": "1.0",
+    "ranksep": "1.2",
+}
+
+node_attr = {
+    "fontsize": "14",
+    "fontname": "Helvetica",
+}
+
+edge_attr = {
+    "fontsize": "12",
+    "fontname": "Helvetica",
 }
 
 with Diagram(
-    "IAM Access Analyzer Solution",
+    "AWS IAM Access Analyzer Solution",
     filename="/home/ubuntu/aws-iam-access-analyzer-samples/architecture",
     show=False,
     direction="LR",
     graph_attr=graph_attr,
+    node_attr=node_attr,
+    edge_attr=edge_attr,
     outformat="png"
 ):
     
     # Users
     dev = User("Developer")
-    security = User("Security\nTeam")
+    security = Users("Security Team")
     
-    # CI/CD
-    with Cluster("CI/CD Pipeline", graph_attr={"bgcolor": "#e3f2fd"}):
-        cicd = Codepipeline("CodePipeline")
+    # CI/CD Pipeline
+    with Cluster("CI/CD Pipeline", graph_attr={"bgcolor": "#E3F2FD", "fontsize": "16"}):
+        pipeline = Codepipeline("CodePipeline")
         build = Codebuild("CodeBuild")
         validator = Lambda("Policy\nValidator")
+        pipeline >> build >> validator
     
-    # Access Analyzer
-    with Cluster("IAM Access Analyzer", graph_attr={"bgcolor": "#fff3e0"}):
-        analyzer = IAMAccessAnalyzer("Analyzer")
+    # Access Analyzer Core
+    with Cluster("IAM Access Analyzer", graph_attr={"bgcolor": "#FFF8E1", "fontsize": "16"}):
+        analyzer = IAMAccessAnalyzer("Access\nAnalyzer")
     
-    # Resources
-    with Cluster("Monitored Resources (15 types)", graph_attr={"bgcolor": "#e8f5e9"}):
-        s3 = S3("S3")
-        iam = IAM("IAM")
-        kms = KMS("KMS")
-        lambda_fn = Lambda("Lambda")
-        sqs = SQS("SQS")
-        sns_r = SNS("SNS")
-        secrets = SecretsManager("Secrets")
-        rds = RDS("RDS")
-        ddb = DynamodbTable("DynamoDB")
+    # Monitored Resources
+    with Cluster("Monitored AWS Resources", graph_attr={"bgcolor": "#E8F5E9", "fontsize": "16"}):
+        with Cluster("Storage & Compute"):
+            s3 = S3("S3 Buckets")
+            lambda_fn = Lambda("Lambda")
+            ebs = EBS("EBS")
+        
+        with Cluster("Security"):
+            iam = IAM("IAM Roles")
+            kms = KMS("KMS Keys")
+            secrets = SecretsManager("Secrets")
+        
+        with Cluster("Database & Messaging"):
+            rds = RDS("RDS")
+            ddb = DynamodbTable("DynamoDB")
+            sqs = SQS("SQS")
+            sns_r = SNS("SNS")
     
-    # Alerting
-    with Cluster("Real-time Alerting", graph_attr={"bgcolor": "#fce4ec"}):
-        eb = Eventbridge("EventBridge")
-        sns = SNS("SNS\nAlerts")
+    # Alerting & Monitoring
+    with Cluster("Alerting & Monitoring", graph_attr={"bgcolor": "#FCE4EC", "fontsize": "16"}):
+        eventbridge = Eventbridge("EventBridge\nRules")
+        sns_alert = SNS("SNS\nNotifications")
         logs = Cloudwatch("CloudWatch\nLogs")
     
-    # Flows
-    dev >> Edge(color="#1976d2", style="bold") >> cicd >> build >> validator
-    validator >> Edge(label="validate", color="#ff9800", style="bold") >> analyzer
+    # Main Flow
+    dev >> Edge(color="#1565C0", style="bold", penwidth="2.0") >> pipeline
     
-    analyzer >> Edge(style="dashed", color="#4caf50") >> [s3, iam, kms]
-    analyzer >> Edge(style="dashed", color="#4caf50") >> [lambda_fn, sqs, sns_r]
-    analyzer >> Edge(style="dashed", color="#4caf50") >> [secrets, rds, ddb]
+    validator >> Edge(label="validate", color="#FF8F00", style="bold", penwidth="2.0") >> analyzer
     
-    analyzer >> Edge(label="findings", color="#f44336", style="bold") >> eb
-    eb >> sns >> security
-    eb >> logs
+    # Analyzer scanning resources
+    analyzer >> Edge(style="dashed", color="#43A047", penwidth="1.5") >> s3
+    analyzer >> Edge(style="dashed", color="#43A047", penwidth="1.5") >> iam
+    analyzer >> Edge(style="dashed", color="#43A047", penwidth="1.5") >> kms
+    analyzer >> Edge(style="dashed", color="#43A047", penwidth="1.5") >> lambda_fn
+    analyzer >> Edge(style="dashed", color="#43A047", penwidth="1.5") >> ddb
+    
+    # Findings flow
+    analyzer >> Edge(label="findings", color="#E53935", style="bold", penwidth="2.0") >> eventbridge
+    eventbridge >> Edge(color="#E53935", penwidth="1.5") >> sns_alert
+    eventbridge >> Edge(color="#7B1FA2", penwidth="1.5") >> logs
+    sns_alert >> Edge(color="#E53935", style="bold", penwidth="2.0") >> security
