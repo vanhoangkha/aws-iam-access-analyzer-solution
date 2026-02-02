@@ -11,7 +11,7 @@
                     "Statement":[{
                         "Action": [
                             "sqs:SendMessage", 
-                            "sqs:ReceiveMessages"
+                            "sqs:ReceiveMessage"
                         ],
                         "Effect": "Allow",
                         "Resource": {
@@ -56,7 +56,7 @@
                             "Statement": [
                                 {
                                     "Effect": "Allow",
-                                    "Action": ["s3:ListBuckets"],
+                                    "Action": ["s3:ListBucket"],
                                     "Resource": ["arn:aws:s3:::bucket-name"]
                                 }
                             ]

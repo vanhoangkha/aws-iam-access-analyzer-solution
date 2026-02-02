@@ -6,7 +6,8 @@
       "Principal": {
         "AWS": "arn:aws:iam::111122223333:root"
       },
-      "Action": "sts:AssumeRole"
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::111122223333:role/MyRole"
     }
   ]
 }

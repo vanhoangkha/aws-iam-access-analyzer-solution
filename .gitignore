@@ -1,5 +1,38 @@
-venv
-.idea
-.terraform
-.vscode/settings.json
-__pycache__
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AWS
+.aws-sam/
+samconfig.toml
+
+# Logs
+*.log
+security_report.json
+
+# Node (for CDK)
+node_modules/
+cdk.out/
+*.js
+*.d.ts
+!jest.config.js
+
+# Test
+.coverage
+htmlcov/
+.pytest_cache/

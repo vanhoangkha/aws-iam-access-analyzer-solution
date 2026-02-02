@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM Access Analyzer - Full Setup with EventBridge automation (Best Practices)'
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email for alerts
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    ConstraintDescription: Must be a valid email address
+
+Resources:
+  # 1. External Access Analyzer (FREE)
+  ExternalAccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Properties:
+      AnalyzerName: external-access-analyzer
+      Type: ACCOUNT
+      Tags:
+        - Key: Purpose
+          Value: ExternalAccessDetection
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # 2. Unused Access Analyzer ($0.20/role/user/month)
+  UnusedAccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Properties:
+      AnalyzerName: unused-access-analyzer
+      Type: ACCOUNT_UNUSED_ACCESS
+      AnalyzerConfiguration:
+        UnusedAccessConfiguration:
+          UnusedAccessAge: 90
+      Tags:
+        - Key: Purpose
+          Value: UnusedAccessDetection
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # 3. SNS Topic (encrypted with KMS)
+  FindingsNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: access-analyzer-findings
+      KmsMasterKeyId: alias/aws/sns
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+      Tags:
+        - Key: Purpose
+          Value: SecurityAlerts
+
+  # 4. SNS Topic Policy (least privilege)
+  TopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref FindingsNotificationTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref FindingsNotificationTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/access-analyzer-*'
+
+  # 5. EventBridge Rule - All new findings -> SNS
+  NewFindingRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: access-analyzer-new-finding
+      Description: Alert on all new Access Analyzer findings
+      EventPattern:
+        source:
+          - aws.access-analyzer
+        detail-type:
+          - Access Analyzer Finding
+        detail:
+          status:
+            - ACTIVE
+      State: ENABLED
+      Targets:
+        - Id: notify-sns
+          Arn: !Ref FindingsNotificationTopic
+
+  # 6. EventBridge Rule - Critical findings -> SNS + Lambda
+  CriticalFindingRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: access-analyzer-critical
+      Description: Alert on critical resource findings (S3, IAM, KMS)
+      EventPattern:
+        source:
+          - aws.access-analyzer
+        detail-type:
+          - Access Analyzer Finding
+        detail:
+          status:
+            - ACTIVE
+          resourceType:
+            - AWS::S3::Bucket
+            - AWS::IAM::Role
+            - AWS::KMS::Key
+            - AWS::SecretsManager::Secret
+      State: ENABLED
+      Targets:
+        - Id: notify-sns
+          Arn: !Ref FindingsNotificationTopic
+        - Id: log-critical
+          Arn: !GetAtt FindingsLoggerFunction.Arn
+
+  # 7. Lambda for audit logging
+  FindingsLoggerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: access-analyzer-logger
+      Description: Log Access Analyzer findings for audit trail
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 128
+      ReservedConcurrentExecutions: 10
+      Role: !GetAtt LoggerRole.Arn
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Code:
+        ZipFile: |
+          import json
+          import logging
+          import os
+          
+          logger = logging.getLogger()
+          logger.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
+          
+          def handler(event, context):
+              finding = event.get('detail', {})
+              
+              log_entry = {
+                  'event': 'ACCESS_ANALYZER_FINDING',
+                  'findingId': finding.get('id'),
+                  'resourceType': finding.get('resourceType'),
+                  'resource': finding.get('resource'),
+                  'status': finding.get('status'),
+                  'findingType': finding.get('findingType'),
+                  'analyzedAt': finding.get('analyzedAt')
+              }
+              
+              logger.info(json.dumps(log_entry))
+              return {'statusCode': 200}
+      Tags:
+        - Key: Purpose
+          Value: AuditLogging
+
+  # 8. Lambda IAM Role (least privilege)
+  LoggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: access-analyzer-logger-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchLogsOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/access-analyzer-logger:*'
+      Tags:
+        - Key: Purpose
+          Value: LambdaExecution
+
+  # 9. Lambda Permission for EventBridge
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FindingsLoggerFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CriticalFindingRule.Arn
+      SourceAccount: !Ref AWS::AccountId
+
+  # 10. CloudWatch Log Group with retention
+  LoggerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/access-analyzer-logger
+      RetentionInDays: 90
+      Tags:
+        - Key: Purpose
+          Value: AuditLogs
+
+Outputs:
+  ExternalAccessAnalyzerArn:
+    Description: External Access Analyzer ARN
+    Value: !GetAtt ExternalAccessAnalyzer.Arn
+    Export:
+      Name: ExternalAccessAnalyzerArn
+      
+  UnusedAccessAnalyzerArn:
+    Description: Unused Access Analyzer ARN
+    Value: !GetAtt UnusedAccessAnalyzer.Arn
+    Export:
+      Name: UnusedAccessAnalyzerArn
+      
+  NotificationTopicArn:
+    Description: SNS Topic for notifications
+    Value: !Ref FindingsNotificationTopic
+    Export:
+      Name: AccessAnalyzerNotificationTopic
+      
+  LoggerFunctionArn:
+    Description: Lambda Logger Function ARN
+    Value: !GetAtt FindingsLoggerFunction.Arn

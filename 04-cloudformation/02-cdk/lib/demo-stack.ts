@@ -11,9 +11,9 @@ export class DemoStack extends cdk.Stack {
     
     myQueue.addToResourcePolicy(
       new iam.PolicyStatement({
-        principals: [new iam.AnyPrincipal()],
+        principals: [new AccountPrincipal("111122223333")],
         effect: iam.Effect.ALLOW,
-        actions: ['sqs:SendMessage', 'sqs:ReceiveMessages'],
+        actions: ['sqs:SendMessage', 'sqs:ReceiveMessage'],
         resources: [myQueue.queueArn]
       }),
     )
@@ -27,7 +27,7 @@ export class DemoStack extends cdk.Stack {
 
     role.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ['s3:ListBuckets'],
+      actions: ['s3:ListBucket'],
       resources: ['arn:aws:s3:::bucket-name']
     }));
   }
