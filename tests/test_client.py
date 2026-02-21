@@ -109,15 +109,15 @@ class TestCheckAccessNotGranted:
 
 
 class TestGetFindings:
-    def test_get_findings_empty(self, mock_clients):
+    def test_list_findings_v2_empty(self, mock_clients):
         mock_clients['aa'].get_paginator.return_value.paginate.return_value = [{'findings': []}]
         
         solution = AccessAnalyzerClient(region='us-east-1')
-        result = solution.get_findings('arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test')
+        result = solution.list_findings_v2('arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test')
         
         assert result == []
 
-    def test_get_findings_with_results(self, mock_clients):
+    def test_list_findings_v2_with_results(self, mock_clients):
         findings = [
             {'id': '1', 'resourceType': 'AWS::S3::Bucket', 'status': 'ACTIVE'},
             {'id': '2', 'resourceType': 'AWS::IAM::Role', 'status': 'ACTIVE'}
@@ -125,7 +125,7 @@ class TestGetFindings:
         mock_clients['aa'].get_paginator.return_value.paginate.return_value = [{'findings': findings}]
         
         solution = AccessAnalyzerClient(region='us-east-1')
-        result = solution.get_findings('arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test')
+        result = solution.list_findings_v2('arn:aws:access-analyzer:us-east-1:123456789012:analyzer/test')
         
         assert len(result) == 2
 
