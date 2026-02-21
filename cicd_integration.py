@@ -1,32 +1,59 @@
 #!/usr/bin/env python3
 """
-CI/CD Integration - Block deployments with security issues.
-Usage: python3 cicd_integration.py <policies_dir>
+CI/CD Integration for IAM Access Analyzer.
+Block deployments with security issues.
+
+Usage:
+    python3 cicd_integration.py <policies_dir>
+    python3 cicd_integration.py --check-policy <policy.json> <resource_type>
 """
 
 import sys
 import json
+import logging
 import boto3
 from pathlib import Path
+from typing import Dict, List, Any
 from botocore.exceptions import ClientError
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 aa = boto3.client('accessanalyzer')
 
 
-def validate_all_policies(policies_dir: str) -> dict:
-    """Validate all JSON policies in directory."""
+def validate_all_policies(policies_dir: str) -> Dict[str, Any]:
+    """
+    Validate all JSON policies in directory.
+
+    Args:
+        policies_dir: Path to directory containing policy JSON files
+
+    Returns:
+        Dict with errors, warnings, passed count, and total count
+    """
     results = {'errors': [], 'warnings': [], 'passed': 0, 'total': 0}
 
-    for policy_file in Path(policies_dir).rglob('*.json'):
+    policy_files = list(Path(policies_dir).rglob('*.json'))
+    if not policy_files:
+        logger.warning("No JSON files found in %s", policies_dir)
+        return results
+
+    for policy_file in policy_files:
         results['total'] += 1
+
         try:
             with open(policy_file) as f:
                 policy = json.load(f)
         except json.JSONDecodeError as e:
-            results['errors'].append({'file': str(policy_file), 'issue': 'INVALID_JSON', 'detail': str(e)})
+            results['errors'].append({
+                'file': str(policy_file),
+                'issue': 'INVALID_JSON',
+                'detail': str(e)
+            })
             continue
 
-        # Detect policy type
+        # Detect policy type from path
         path_str = str(policy_file).lower()
         if 'scp' in path_str:
             policy_type = 'SERVICE_CONTROL_POLICY'
@@ -36,36 +63,68 @@ def validate_all_policies(policies_dir: str) -> dict:
             policy_type = 'IDENTITY_POLICY'
 
         try:
-            resp = aa.validate_policy(policyDocument=json.dumps(policy), policyType=policy_type)
+            resp = aa.validate_policy(
+                policyDocument=json.dumps(policy),
+                policyType=policy_type
+            )
             findings = resp.get('findings', [])
 
-            for f in findings:
-                item = {'file': str(policy_file), 'issue': f['issueCode'], 'detail': f['findingDetails']}
-                if f['findingType'] in ['ERROR', 'SECURITY_WARNING']:
+            for finding in findings:
+                item = {
+                    'file': str(policy_file),
+                    'issue': finding['issueCode'],
+                    'detail': finding['findingDetails']
+                }
+                if finding['findingType'] in ['ERROR', 'SECURITY_WARNING']:
                     results['errors'].append(item)
                 else:
                     results['warnings'].append(item)
 
             if not findings:
                 results['passed'] += 1
+
         except ClientError as e:
-            results['errors'].append({'file': str(policy_file), 'issue': 'API_ERROR', 'detail': str(e)})
+            results['errors'].append({
+                'file': str(policy_file),
+                'issue': 'API_ERROR',
+                'detail': str(e)
+            })
 
     return results
 
 
-def check_no_public_access(policy: dict, resource_type: str) -> dict:
-    """Check if policy grants public access."""
+def check_no_public_access(policy: dict, resource_type: str) -> Dict[str, Any]:
+    """
+    Check if policy grants public access.
+
+    Args:
+        policy: Resource policy document
+        resource_type: AWS resource type (AWS::S3::Bucket, etc.)
+
+    Returns:
+        Dict with result and reasons
+    """
     try:
-        resp = aa.check_no_public_access(policyDocument=json.dumps(policy), resourceType=resource_type)
+        resp = aa.check_no_public_access(
+            policyDocument=json.dumps(policy),
+            resourceType=resource_type
+        )
         return {'result': resp['result'], 'reasons': resp.get('reasons', [])}
     except ClientError as e:
         return {'result': 'ERROR', 'reasons': [str(e)]}
 
 
-def check_no_privilege_escalation(policy: dict) -> dict:
-    """Check for privilege escalation paths."""
-    dangerous_actions = [
+def check_no_privilege_escalation(policy: dict) -> Dict[str, Any]:
+    """
+    Check for privilege escalation paths.
+
+    Args:
+        policy: IAM policy document
+
+    Returns:
+        Dict with result and list of dangerous actions found
+    """
+    dangerous_action_sets = [
         ['iam:*'],
         ['iam:PassRole'],
         ['iam:CreatePolicyVersion'],
@@ -73,8 +132,8 @@ def check_no_privilege_escalation(policy: dict) -> dict:
         ['sts:AssumeRole'],
     ]
 
-    failed = []
-    for actions in dangerous_actions:
+    failed_actions = []
+    for actions in dangerous_action_sets:
         try:
             resp = aa.check_access_not_granted(
                 policyDocument=json.dumps(policy),
@@ -82,59 +141,116 @@ def check_no_privilege_escalation(policy: dict) -> dict:
                 policyType='IDENTITY_POLICY'
             )
             if resp['result'] == 'FAIL':
-                failed.extend(actions)
+                failed_actions.extend(actions)
         except ClientError:
             pass
 
-    return {'result': 'PASS' if not failed else 'FAIL', 'dangerous_actions': failed}
+    return {
+        'result': 'PASS' if not failed_actions else 'FAIL',
+        'dangerous_actions': failed_actions
+    }
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: cicd_integration.py <policies_dir>")
-        print("       cicd_integration.py --check-policy <policy.json> <resource_type>")
-        sys.exit(1)
+def check_single_policy(policy_path: str, resource_type: str) -> int:
+    """
+    Check a single policy file.
 
-    if sys.argv[1] == '--check-policy' and len(sys.argv) >= 4:
-        with open(sys.argv[2]) as f:
+    Args:
+        policy_path: Path to policy JSON file
+        resource_type: AWS resource type
+
+    Returns:
+        Exit code (0 for success, 1 for failure)
+    """
+    try:
+        with open(policy_path) as f:
             policy = json.load(f)
-        resource_type = sys.argv[3]
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        logger.error("Failed to read policy: %s", e)
+        return 1
 
-        print(f"🔍 Checking {sys.argv[2]}...")
-        public = check_no_public_access(policy, resource_type)
-        print(f"   Public access: {public['result']}")
+    print(f"Checking {policy_path}...")
 
-        priv = check_no_privilege_escalation(policy)
-        print(f"   Privilege escalation: {priv['result']}")
-        if priv['dangerous_actions']:
-            print(f"   ⚠️ Dangerous actions: {priv['dangerous_actions']}")
+    public_result = check_no_public_access(policy, resource_type)
+    print(f"  Public access check: {public_result['result']}")
 
-        sys.exit(0 if public['result'] == 'PASS' and priv['result'] == 'PASS' else 1)
+    priv_result = check_no_privilege_escalation(policy)
+    print(f"  Privilege escalation check: {priv_result['result']}")
 
-    policies_dir = sys.argv[1]
-    print(f"🔍 Scanning {policies_dir}...")
+    if priv_result['dangerous_actions']:
+        print(f"  Dangerous actions found: {priv_result['dangerous_actions']}")
+
+    if public_result['result'] != 'PASS' or priv_result['result'] != 'PASS':
+        return 1
+    return 0
+
+
+def validate_directory(policies_dir: str) -> int:
+    """
+    Validate all policies in a directory.
+
+    Args:
+        policies_dir: Path to directory
+
+    Returns:
+        Exit code (0 for success, 1 for failure)
+    """
+    print(f"Scanning {policies_dir}...")
 
     results = validate_all_policies(policies_dir)
 
-    print(f"\n📊 Results ({results['total']} policies):")
-    print(f"   ✅ Passed: {results['passed']}")
-    print(f"   ⚠️  Warnings: {len(results['warnings'])}")
-    print(f"   ❌ Errors: {len(results['errors'])}")
+    print(f"\nResults ({results['total']} policies):")
+    print(f"  Passed: {results['passed']}")
+    print(f"  Warnings: {len(results['warnings'])}")
+    print(f"  Errors: {len(results['errors'])}")
 
     if results['warnings']:
-        print("\n⚠️ WARNINGS:")
-        for w in results['warnings'][:5]:
-            print(f"   {Path(w['file']).name}: {w['issue']}")
+        print("\nWarnings:")
+        for warning in results['warnings'][:5]:
+            print(f"  {Path(warning['file']).name}: {warning['issue']}")
+        if len(results['warnings']) > 5:
+            print(f"  ... and {len(results['warnings']) - 5} more")
 
     if results['errors']:
-        print("\n❌ ERRORS (blocking):")
-        for e in results['errors']:
-            print(f"   {Path(e['file']).name}: {e['issue']} - {e['detail'][:50]}")
-        sys.exit(1)
+        print("\nErrors (blocking):")
+        for error in results['errors']:
+            detail = error['detail'][:50] if len(error['detail']) > 50 else error['detail']
+            print(f"  {Path(error['file']).name}: {error['issue']} - {detail}")
+        return 1
 
-    print("\n✅ All policies passed validation!")
-    sys.exit(0)
+    print("\nAll policies passed validation!")
+    return 0
+
+
+def print_usage():
+    """Print usage information."""
+    print("Usage:")
+    print("  cicd_integration.py <policies_dir>")
+    print("  cicd_integration.py --check-policy <policy.json> <resource_type>")
+    print("")
+    print("Examples:")
+    print("  cicd_integration.py ./policies")
+    print("  cicd_integration.py --check-policy bucket-policy.json AWS::S3::Bucket")
+
+
+def main() -> int:
+    """Main entry point."""
+    if len(sys.argv) < 2:
+        print_usage()
+        return 1
+
+    if sys.argv[1] == '--check-policy':
+        if len(sys.argv) < 4:
+            print("Error: --check-policy requires <policy.json> and <resource_type>")
+            return 1
+        return check_single_policy(sys.argv[2], sys.argv[3])
+
+    if sys.argv[1] in ['--help', '-h']:
+        print_usage()
+        return 0
+
+    return validate_directory(sys.argv[1])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
