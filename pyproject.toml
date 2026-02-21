@@ -10,7 +10,7 @@ readme = "README.md"
 license = {text = "MIT-0"}
 requires-python = ">=3.9"
 authors = [
-    {name = "Kha Van", email = "kha@example.com"}
+    {name = "Kha Van", email = "khavan.work@gmail.com"}
 ]
 keywords = ["aws", "iam", "access-analyzer", "security", "policy"]
 classifiers = [
