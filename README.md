@@ -10,6 +10,15 @@ Complete Python SDK implementing all 37 IAM Access Analyzer APIs for AWS securit
 
 ![Architecture](docs/architecture.png)
 
+### Additional Diagrams
+
+| Diagram | Description |
+|---------|-------------|
+| [CI/CD Pipeline](docs/cicd-pipeline.png) | Policy validation in CI/CD |
+| [Monitoring Flow](docs/monitoring-flow.png) | Security alerting flow |
+| [SDK Components](docs/sdk-components.png) | Package structure |
+| [Full Documentation](docs/ARCHITECTURE.md) | Complete architecture docs |
+
 ## Installation
 
 ```bash
