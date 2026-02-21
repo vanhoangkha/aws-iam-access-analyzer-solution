@@ -6,6 +6,10 @@
 
 Complete Python SDK implementing all 37 IAM Access Analyzer APIs for AWS security automation.
 
+## Architecture
+
+![Architecture](docs/architecture.png)
+
 ## Installation
 
 ```bash

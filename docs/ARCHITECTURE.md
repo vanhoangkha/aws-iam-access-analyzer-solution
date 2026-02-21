@@ -2,23 +2,7 @@
 
 ## Solution Overview
 
-```
-+------------------+     +----------------------+     +------------------+
-|                  |     |                      |     |                  |
-|   Your AWS       |---->|  IAM Access Analyzer |---->|  This SDK        |
-|   Resources      |     |  Service             |     |  (Python)        |
-|                  |     |                      |     |                  |
-+------------------+     +----------------------+     +------------------+
-        |                         |                          |
-        v                         v                          v
-+------------------+     +----------------------+     +------------------+
-| - S3 Buckets     |     | - External Access    |     | - CLI Commands   |
-| - IAM Roles      |     |   Analyzer (FREE)    |     | - CI/CD Pipeline |
-| - KMS Keys       |     | - Unused Access      |     | - Dashboard      |
-| - SQS Queues     |     |   Analyzer ($0.20)   |     | - Reports        |
-| - Lambda         |     |                      |     |                  |
-+------------------+     +----------------------+     +------------------+
-```
+![Architecture Diagram](architecture.png)
 
 ## Components
 
