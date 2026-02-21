@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aws-access-analyzer"
+version = "1.0.0"
+description = "AWS IAM Access Analyzer SDK - Complete implementation of all 37 APIs"
+readme = "README.md"
+license = {text = "MIT-0"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Kha Van", email = "kha@example.com"}
+]
+keywords = ["aws", "iam", "access-analyzer", "security", "policy"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = [
+    "boto3>=1.34.0",
+    "botocore>=1.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+access-analyzer = "access_analyzer.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution"
+Documentation = "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html"
+Repository = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 
-class AccessAnalyzerSolution:
+class AccessAnalyzerClient:
     """Complete AWS IAM Access Analyzer API wrapper."""
 
     ANALYZER_TYPES = ['ACCOUNT', 'ACCOUNT_UNUSED_ACCESS', 'ORGANIZATION', 'ORGANIZATION_UNUSED_ACCESS']
@@ -634,7 +634,7 @@ class AccessAnalyzerSolution:
 def main():
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
-    solution = AccessAnalyzerSolution()
+    solution = AccessAnalyzerClient()
     
     print("Setting up analyzers...")
     analyzers = solution.ensure_analyzers()
