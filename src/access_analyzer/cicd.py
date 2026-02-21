@@ -78,7 +78,11 @@ class PolicyValidator:
         """Validate all JSON policies in directory."""
         results = {'errors': [], 'warnings': [], 'passed': 0, 'total': 0}
 
-        for policy_file in Path(policies_dir).rglob('*.json'):
+        base_path = Path(policies_dir).resolve()
+        if not base_path.exists():
+            raise ValueError(f"Directory not found: {policies_dir}")
+
+        for policy_file in base_path.rglob('*.json'):
             results['total'] += 1
 
             try:
