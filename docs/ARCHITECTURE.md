@@ -4,6 +4,18 @@
 
 ![Architecture Diagram](architecture.png)
 
+## CI/CD Pipeline Integration
+
+![CI/CD Pipeline](cicd-pipeline.png)
+
+## Security Monitoring Flow
+
+![Monitoring Flow](monitoring-flow.png)
+
+## SDK Components
+
+![SDK Components](sdk-components.png)
+
 ## Components
 
 ### 1. AccessAnalyzerClient (client.py)
