@@ -24,6 +24,63 @@ Production-ready implementation leveraging ALL IAM Access Analyzer features for 
 | Access Preview | `create_access_preview` | FREE |
 | Policy Generation | `start_policy_generation` | FREE |
 
+## All 37 APIs Implemented
+
+### Analyzer Management
+- `CreateAnalyzer` - Create external, internal, or unused access analyzer
+- `DeleteAnalyzer` - Delete an analyzer
+- `GetAnalyzer` - Get analyzer details
+- `ListAnalyzers` - List all analyzers
+- `UpdateAnalyzer` - Update analyzer configuration (unused access only)
+
+### Findings
+- `ListFindings` - List findings (v1)
+- `ListFindingsV2` - List findings with enhanced details
+- `GetFinding` - Get finding details (v1)
+- `GetFindingV2` - Get finding details (v2)
+- `UpdateFindings` - Archive or resolve findings
+- `GetFindingsStatistics` - Get aggregated statistics
+
+### Archive Rules
+- `CreateArchiveRule` - Create auto-archive rule
+- `DeleteArchiveRule` - Delete archive rule
+- `GetArchiveRule` - Get archive rule details
+- `ListArchiveRules` - List all archive rules
+- `UpdateArchiveRule` - Update archive rule
+- `ApplyArchiveRule` - Apply rule to existing findings
+
+### Policy Validation
+- `ValidatePolicy` - Validate against best practices (FREE)
+- `CheckNoPublicAccess` - Check for public access ($0.002/call)
+- `CheckAccessNotGranted` - Check actions not granted ($0.002/call)
+- `CheckNoNewAccess` - Compare policies ($0.002/call)
+
+### Access Preview
+- `CreateAccessPreview` - Preview policy changes (FREE)
+- `GetAccessPreview` - Get preview status
+- `ListAccessPreviews` - List all previews
+- `ListAccessPreviewFindings` - Get preview findings
+
+### Policy Generation
+- `StartPolicyGeneration` - Generate from CloudTrail (FREE)
+- `GetGeneratedPolicy` - Get generated policy
+- `CancelPolicyGeneration` - Cancel generation job
+- `ListPolicyGenerations` - List generation jobs
+
+### Resources
+- `GetAnalyzedResource` - Get resource details (external only)
+- `ListAnalyzedResources` - List analyzed resources
+- `StartResourceScan` - Trigger immediate scan
+
+### Recommendations
+- `GenerateFindingRecommendation` - Generate recommendations
+- `GetFindingRecommendation` - Get recommendations
+
+### Tags
+- `TagResource` - Add tags to analyzer
+- `UntagResource` - Remove tags
+- `ListTagsForResource` - List tags
+
 ## Supported Resources
 
 ### External Access Analysis (15 resource types)
