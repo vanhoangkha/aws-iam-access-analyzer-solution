@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class AccessAnalyzerClient:
-    """Complete AWS IAM Access Analyzer API wrapper."""
+    """Complete AWS IAM Access Analyzer API wrapper with multi-region and organization support."""
 
     ANALYZER_TYPES = ['ACCOUNT', 'ACCOUNT_UNUSED_ACCESS', 'ORGANIZATION', 'ORGANIZATION_UNUSED_ACCESS']
     
@@ -49,12 +49,58 @@ class AccessAnalyzerClient:
         'AWS::DynamoDB::Table': ('dynamodbTable', 'policy'),
         'AWS::DynamoDB::Stream': ('dynamodbStream', 'streamPolicy'),
     }
+    
+    # All commercial AWS regions
+    ALL_REGIONS = [
+        'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+        'ap-south-1', 'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3',
+        'ap-southeast-1', 'ap-southeast-2', 'ap-east-1',
+        'ca-central-1', 'eu-central-1', 'eu-west-1', 'eu-west-2', 'eu-west-3',
+        'eu-north-1', 'eu-south-1', 'me-south-1', 'sa-east-1', 'af-south-1',
+        'me-central-1', 'ap-south-2', 'ap-southeast-3', 'ap-southeast-4',
+        'eu-central-2', 'eu-south-2', 'il-central-1', 'ca-west-1'
+    ]
 
-    def __init__(self, region: str = None):
+    def __init__(self, region: str = None, regions: List[str] = None):
+        """
+        Initialize client.
+        
+        Args:
+            region: Primary region (default: us-east-1)
+            regions: List of regions for multi-region operations
+        """
         self.region = region or boto3.session.Session().region_name or 'us-east-1'
+        self.regions = regions or [self.region]
         self.aa = boto3.client('accessanalyzer', region_name=self.region)
         self.sts = boto3.client('sts', region_name=self.region)
         self.account_id = self.sts.get_caller_identity()['Account']
+        self._org_id = None
+    
+    def _get_client(self, region: str):
+        """Get Access Analyzer client for specific region."""
+        if region == self.region:
+            return self.aa
+        return boto3.client('accessanalyzer', region_name=region)
+    
+    def _get_org_id(self) -> Optional[str]:
+        """Get AWS Organization ID if account is part of an org."""
+        if self._org_id:
+            return self._org_id
+        try:
+            org = boto3.client('organizations', region_name='us-east-1')
+            self._org_id = org.describe_organization()['Organization']['Id']
+            return self._org_id
+        except ClientError:
+            return None
+    
+    def is_org_management_account(self) -> bool:
+        """Check if current account is the organization management account."""
+        try:
+            org = boto3.client('organizations', region_name='us-east-1')
+            org_info = org.describe_organization()['Organization']
+            return org_info['MasterAccountId'] == self.account_id
+        except ClientError:
+            return False
 
     def _to_json(self, policy: Union[dict, str]) -> str:
         return json.dumps(policy) if isinstance(policy, dict) else policy
@@ -123,10 +169,22 @@ class AccessAnalyzerClient:
             logger.error("update_analyzer failed: %s", e)
             return {'error': str(e)}
 
-    def ensure_analyzers(self) -> Dict[str, str]:
-        """Ensure ACCOUNT and ACCOUNT_UNUSED_ACCESS analyzers exist."""
+    def ensure_analyzers(self, use_org: bool = False) -> Dict[str, str]:
+        """
+        Ensure analyzers exist.
+        
+        Args:
+            use_org: If True and in org management account, create ORGANIZATION analyzers
+        """
         analyzers = {}
-        for atype in ['ACCOUNT', 'ACCOUNT_UNUSED_ACCESS']:
+        
+        # Determine analyzer types based on context
+        if use_org and self.is_org_management_account():
+            types = ['ORGANIZATION', 'ORGANIZATION_UNUSED_ACCESS']
+        else:
+            types = ['ACCOUNT', 'ACCOUNT_UNUSED_ACCESS']
+        
+        for atype in types:
             name = f"analyzer-{atype.lower().replace('_', '-')}"
             existing = [a for a in self.list_analyzers(atype) if a['status'] == 'ACTIVE']
             if existing:
@@ -136,6 +194,24 @@ class AccessAnalyzerClient:
                 if 'arn' in result:
                     analyzers[atype] = result['arn']
         return analyzers
+    
+    def ensure_analyzers_all_regions(self, use_org: bool = False) -> Dict[str, Dict[str, str]]:
+        """
+        Ensure analyzers exist in all specified regions.
+        
+        Returns:
+            Dict mapping region -> analyzer_type -> analyzer_arn
+        """
+        results = {}
+        for region in self.regions:
+            client = self._get_client(region)
+            original_aa = self.aa
+            self.aa = client
+            try:
+                results[region] = self.ensure_analyzers(use_org)
+            finally:
+                self.aa = original_aa
+        return results
 
     # ==================== FINDINGS ====================
 
@@ -606,29 +682,63 @@ class AccessAnalyzerClient:
 
     # ==================== HIGH-LEVEL OPERATIONS ====================
 
-    def full_scan(self) -> Dict[str, Any]:
-        """Run comprehensive scan."""
+    def full_scan(self, use_org: bool = False) -> Dict[str, Any]:
+        """Run comprehensive scan in current region."""
         results = {'external_access': [], 'unused_access': [], 'statistics': {}, 'summary': {}}
-        analyzers = self.ensure_analyzers()
+        analyzers = self.ensure_analyzers(use_org)
         
-        if 'ACCOUNT' in analyzers:
-            results['external_access'] = self.list_findings_v2(analyzers['ACCOUNT'])
-            stats = self.get_findings_statistics(analyzers['ACCOUNT'])
+        ext_key = 'ORGANIZATION' if 'ORGANIZATION' in analyzers else 'ACCOUNT'
+        unused_key = 'ORGANIZATION_UNUSED_ACCESS' if 'ORGANIZATION_UNUSED_ACCESS' in analyzers else 'ACCOUNT_UNUSED_ACCESS'
+        
+        if ext_key in analyzers:
+            results['external_access'] = self.list_findings_v2(analyzers[ext_key])
+            stats = self.get_findings_statistics(analyzers[ext_key])
             if 'findingsStatistics' in stats:
                 results['statistics']['external'] = stats
         
-        if 'ACCOUNT_UNUSED_ACCESS' in analyzers:
-            results['unused_access'] = self.list_findings_v2(analyzers['ACCOUNT_UNUSED_ACCESS'])
-            stats = self.get_findings_statistics(analyzers['ACCOUNT_UNUSED_ACCESS'])
+        if unused_key in analyzers:
+            results['unused_access'] = self.list_findings_v2(analyzers[unused_key])
+            stats = self.get_findings_statistics(analyzers[unused_key])
             if 'findingsStatistics' in stats:
                 results['statistics']['unused'] = stats
         
         results['summary'] = {
+            'region': self.region,
             'external_count': len(results['external_access']),
             'unused_count': len(results['unused_access']),
             'analyzers': analyzers
         }
         return results
+    
+    def full_scan_all_regions(self, use_org: bool = False) -> Dict[str, Any]:
+        """
+        Run comprehensive scan across all specified regions.
+        
+        Returns:
+            Dict with per-region results and aggregated summary
+        """
+        all_results = {'regions': {}, 'summary': {'total_external': 0, 'total_unused': 0}}
+        
+        for region in self.regions:
+            client = self._get_client(region)
+            original_aa, original_region = self.aa, self.region
+            self.aa, self.region = client, region
+            try:
+                results = self.full_scan(use_org)
+                all_results['regions'][region] = results
+                all_results['summary']['total_external'] += results['summary']['external_count']
+                all_results['summary']['total_unused'] += results['summary']['unused_count']
+            finally:
+                self.aa, self.region = original_aa, original_region
+        
+        all_results['summary']['regions_scanned'] = len(self.regions)
+        return all_results
+    
+    @classmethod
+    def scan_all_commercial_regions(cls, use_org: bool = False) -> Dict[str, Any]:
+        """Scan all commercial AWS regions."""
+        client = cls(regions=cls.ALL_REGIONS)
+        return client.full_scan_all_regions(use_org)
 
 
 def main():

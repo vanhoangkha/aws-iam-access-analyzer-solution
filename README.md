@@ -68,8 +68,20 @@ result = client.check_no_public_access(policy, 'AWS::S3::Bucket')
 ### CLI Usage
 
 ```bash
-# Run security scan
+# Run security scan (single region)
 access-analyzer scan
+
+# Scan specific region
+access-analyzer scan --region eu-west-1
+
+# Scan ALL commercial AWS regions
+access-analyzer scan --all-regions
+
+# Use organization-level analyzers (from management account)
+access-analyzer scan --org
+
+# Scan all regions with organization analyzers
+access-analyzer scan --all-regions --org
 
 # Validate policies in directory
 access-analyzer validate ./policies
@@ -79,6 +91,33 @@ access-analyzer dashboard
 
 # Export report to JSON
 access-analyzer dashboard --export report.json
+```
+
+### Multi-Region & Organization Support
+
+```python
+from access_analyzer import AccessAnalyzerClient
+
+# Single region (default: us-east-1)
+client = AccessAnalyzerClient()
+
+# Specific region
+client = AccessAnalyzerClient(region='eu-west-1')
+
+# Multiple specific regions
+client = AccessAnalyzerClient(regions=['us-east-1', 'eu-west-1', 'ap-southeast-1'])
+results = client.full_scan_all_regions()
+
+# Scan ALL commercial regions
+results = AccessAnalyzerClient.scan_all_commercial_regions()
+
+# Organization-level analyzers (from management account)
+client = AccessAnalyzerClient()
+results = client.full_scan(use_org=True)
+
+# Check if running in org management account
+if client.is_org_management_account():
+    results = client.full_scan(use_org=True)
 ```
 
 ## 📁 Project Structure
