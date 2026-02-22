@@ -6,20 +6,20 @@
 [![CI](https://github.com/vanhoangkha/aws-iam-access-analyzer-solution/actions/workflows/ci.yml/badge.svg)](https://github.com/vanhoangkha/aws-iam-access-analyzer-solution/actions)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-> Production-ready Python SDK implementing all 37 IAM Access Analyzer APIs for AWS security automation.
+Production-ready Python SDK implementing all 37 IAM Access Analyzer APIs for AWS security automation.
 
-## 🎯 Overview
+## Overview
 
 AWS IAM Access Analyzer helps identify resources shared with external entities and unused permissions. This solution provides a comprehensive Python SDK with:
 
-- ✅ **Complete API Coverage** - All 37 IAM Access Analyzer APIs
-- 🌍 **Multi-Region Support** - Scan all 28 commercial AWS regions
-- 🏢 **Organization Support** - Organization-wide security scanning
-- 🔄 **Production Ready** - Retry logic, rate limiting, health checks
-- 🚀 **CI/CD Integration** - Built-in policy validation for pipelines
-- 📊 **Security Dashboard** - Visual reporting and JSON export
+- **Complete API Coverage** - All 37 IAM Access Analyzer APIs
+- **Multi-Region Support** - Scan all 28 commercial AWS regions
+- **Organization Support** - Organization-wide security scanning
+- **Production Ready** - Retry logic, rate limiting, health checks
+- **CI/CD Integration** - Built-in policy validation for pipelines
+- **Security Dashboard** - Visual reporting and JSON export
 
-## 📐 Architecture
+## Architecture
 
 ![Architecture](docs/architecture.png)
 
@@ -32,7 +32,7 @@ AWS IAM Access Analyzer helps identify resources shared with external entities a
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -62,7 +62,7 @@ access-analyzer scan --json
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### CLI Commands
 
@@ -164,18 +164,18 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 
 ---
 
-## 💰 Pricing & TCO
+## Pricing and TCO
 
 ### AWS IAM Access Analyzer Pricing
 
 | Feature | Cost | Notes |
 |---------|------|-------|
-| **External Access Analyzer** | **FREE** | Detects resources shared externally |
-| **Unused Access Analyzer** | $0.20/IAM role or user/month | Identifies unused permissions |
-| **Custom Policy Checks** | $0.002/API call | `check_no_public_access`, `check_access_not_granted`, `check_no_new_access` |
-| **Policy Validation** | **FREE** | `validate_policy` API |
-| **Access Preview** | **FREE** | Preview policy changes before applying |
-| **Policy Generation** | **FREE** | Generate least-privilege policies from CloudTrail |
+| External Access Analyzer | FREE | Detects resources shared externally |
+| Unused Access Analyzer | $0.20/IAM role or user/month | Identifies unused permissions |
+| Custom Policy Checks | $0.002/API call | check_no_public_access, check_access_not_granted, check_no_new_access |
+| Policy Validation | FREE | validate_policy API |
+| Access Preview | FREE | Preview policy changes before applying |
+| Policy Generation | FREE | Generate least-privilege policies from CloudTrail |
 
 ### TCO Examples
 
@@ -222,11 +222,11 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 | Privilege escalation attack | $100K - $5M |
 | Unused access exploitation | $50K - $1M |
 
-**Break-even**: A single prevented security incident typically covers years of Access Analyzer costs.
+A single prevented security incident typically covers years of Access Analyzer costs.
 
 ---
 
-## 📚 API Reference
+## API Reference
 
 ### Analyzer Management (5 APIs)
 
@@ -253,7 +253,7 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 
 | Method | Description | Cost |
 |--------|-------------|------|
-| `validate_policy` | Validate against best practices | **FREE** |
+| `validate_policy` | Validate against best practices | FREE |
 | `check_no_public_access` | Check for public access | $0.002/call |
 | `check_access_not_granted` | Check actions not granted | $0.002/call |
 | `check_no_new_access` | Compare policies | $0.002/call |
@@ -262,7 +262,7 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 
 | Method | Description | Cost |
 |--------|-------------|------|
-| `create_access_preview` | Preview policy changes | **FREE** |
+| `create_access_preview` | Preview policy changes | FREE |
 | `get_access_preview` | Get preview status | FREE |
 | `list_access_previews` | List all previews | FREE |
 | `list_access_preview_findings` | Get preview findings | FREE |
@@ -271,7 +271,7 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 
 | Method | Description | Cost |
 |--------|-------------|------|
-| `start_policy_generation` | Generate from CloudTrail | **FREE** |
+| `start_policy_generation` | Generate from CloudTrail | FREE |
 | `get_generated_policy` | Get generated policy | FREE |
 | `cancel_policy_generation` | Cancel job | FREE |
 | `list_policy_generations` | List jobs | FREE |
@@ -312,7 +312,7 @@ result = client.check_access_not_granted(policy, ['iam:*', 's3:*'])
 
 ---
 
-## 🏗️ Infrastructure Deployment
+## Infrastructure Deployment
 
 ### CloudFormation
 
@@ -335,9 +335,9 @@ aws cloudformation deploy \
 
 ---
 
-## 🔧 Production Features
+## Production Features
 
-### Retry & Rate Limiting
+### Retry and Rate Limiting
 
 ```python
 # Built-in exponential backoff for transient failures
@@ -380,7 +380,7 @@ if client.is_org_management_account():
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
@@ -402,7 +402,7 @@ if client.is_org_management_account():
 
 ---
 
-## 🧪 Development
+## Development
 
 ```bash
 # Clone repository
@@ -422,7 +422,7 @@ isort src tests
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 - [IAM Access Analyzer User Guide](https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html)
 - [API Reference](https://docs.aws.amazon.com/access-analyzer/latest/APIReference/API_Operations.html)
@@ -431,18 +431,14 @@ isort src tests
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md).
 
-## 📄 License
+## License
 
 MIT-0 License - see [LICENSE](LICENSE).
 
-## 👤 Author
+## Author
 
 **Kha Van** - khavan.work@gmail.com - [@vanhoangkha](https://github.com/vanhoangkha)
-
----
-
-⭐ Star this repo if you find it useful!
