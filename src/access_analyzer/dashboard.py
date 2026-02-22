@@ -16,7 +16,7 @@ class SecurityDashboard:
     """Dashboard for Access Analyzer findings and metrics."""
 
     def __init__(self, region: str = None):
-        self.region = region or boto3.session.Session().region_name
+        self.region = region or boto3.session.Session().region_name or 'us-east-1'
         self.client = boto3.client('accessanalyzer', region_name=self.region)
 
     def get_analyzers(self) -> List[Dict[str, Any]]:

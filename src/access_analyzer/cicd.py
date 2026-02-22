@@ -24,7 +24,7 @@ class PolicyValidator:
     """Validates IAM policies using Access Analyzer APIs."""
 
     def __init__(self, region: str = None):
-        self.region = region or boto3.session.Session().region_name
+        self.region = region or boto3.session.Session().region_name or 'us-east-1'
         self.client = boto3.client('accessanalyzer', region_name=self.region)
 
     def validate_policy(self, policy: dict, policy_type: str = 'IDENTITY_POLICY') -> List[Dict]:

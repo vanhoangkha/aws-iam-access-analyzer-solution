@@ -51,9 +51,9 @@ class AccessAnalyzerClient:
     }
 
     def __init__(self, region: str = None):
-        self.region = region or boto3.session.Session().region_name
+        self.region = region or boto3.session.Session().region_name or 'us-east-1'
         self.aa = boto3.client('accessanalyzer', region_name=self.region)
-        self.sts = boto3.client('sts')
+        self.sts = boto3.client('sts', region_name=self.region)
         self.account_id = self.sts.get_caller_identity()['Account']
 
     def _to_json(self, policy: Union[dict, str]) -> str:
