@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing! This document provides guidelines and instructions for contributing.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
@@ -109,7 +109,3 @@ feat(client): add support for new API endpoint
 ## Questions?
 
 Feel free to open an issue or contact the maintainer at khavan.work@gmail.com.
-
----
-
-Thank you for contributing! 🎉
