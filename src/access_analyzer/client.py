@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 """
-AWS IAM Access Analyzer - Complete API Implementation
+AWS IAM Access Analyzer - Production-Ready Implementation
 
-Implements ALL 37 Access Analyzer APIs:
-- Analyzer Management: CreateAnalyzer, DeleteAnalyzer, GetAnalyzer, ListAnalyzers, UpdateAnalyzer
-- Findings: ListFindings, ListFindingsV2, GetFinding, GetFindingV2, UpdateFindings, GetFindingsStatistics
-- Archive Rules: CreateArchiveRule, DeleteArchiveRule, GetArchiveRule, ListArchiveRules, 
-                 UpdateArchiveRule, ApplyArchiveRule
-- Policy Checks: ValidatePolicy, CheckNoPublicAccess, CheckAccessNotGranted, CheckNoNewAccess
-- Access Preview: CreateAccessPreview, GetAccessPreview, ListAccessPreviews, ListAccessPreviewFindings
-- Policy Generation: StartPolicyGeneration, GetGeneratedPolicy, CancelPolicyGeneration, ListPolicyGenerations
-- Resources: GetAnalyzedResource, ListAnalyzedResources, StartResourceScan
-- Recommendations: GenerateFindingRecommendation, GetFindingRecommendation
-- Tags: TagResource, UntagResource, ListTagsForResource
+Implements ALL 37 Access Analyzer APIs with:
+- Multi-region and organization support
+- Automatic retry with exponential backoff
+- Rate limiting protection
+- Comprehensive error handling
+- Structured logging
 
 Reference: https://docs.aws.amazon.com/access-analyzer/latest/APIReference/API_Operations.html
 """
@@ -21,11 +16,47 @@ import boto3
 import json
 import time
 import logging
+import functools
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Union, List, Dict, Any
-from botocore.exceptions import ClientError
+from typing import Optional, Union, List, Dict, Any, Callable
+from botocore.exceptions import ClientError, BotoCoreError
+from botocore.config import Config
 
 logger = logging.getLogger(__name__)
+
+
+def retry_with_backoff(max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 30.0):
+    """Decorator for retry with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except ClientError as e:
+                    error_code = e.response.get('Error', {}).get('Code', '')
+                    # Retry on throttling and transient errors
+                    if error_code in ('Throttling', 'ThrottlingException', 'TooManyRequestsException',
+                                     'ServiceUnavailable', 'InternalServerError'):
+                        last_exception = e
+                        if attempt < max_retries:
+                            delay = min(base_delay * (2 ** attempt), max_delay)
+                            logger.warning(f"Retry {attempt + 1}/{max_retries} after {delay}s: {error_code}")
+                            time.sleep(delay)
+                            continue
+                    raise
+                except BotoCoreError as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2 ** attempt), max_delay)
+                        logger.warning(f"Retry {attempt + 1}/{max_retries} after {delay}s: {e}")
+                        time.sleep(delay)
+                        continue
+                    raise
+            raise last_exception
+        return wrapper
+    return decorator
 
 
 class AccessAnalyzerClient:
@@ -61,26 +92,41 @@ class AccessAnalyzerClient:
         'eu-central-2', 'eu-south-2', 'il-central-1', 'ca-west-1'
     ]
 
-    def __init__(self, region: str = None, regions: List[str] = None):
+    # Boto3 config with retry
+    BOTO_CONFIG = Config(
+        retries={'max_attempts': 3, 'mode': 'adaptive'},
+        connect_timeout=10,
+        read_timeout=30
+    )
+
+    def __init__(self, region: str = None, regions: List[str] = None, max_retries: int = 3):
         """
-        Initialize client.
+        Initialize production-ready client.
         
         Args:
-            region: Primary region (default: us-east-1)
+            region: Primary region (default: from env or us-east-1)
             regions: List of regions for multi-region operations
+            max_retries: Max retry attempts for transient failures
         """
         self.region = region or boto3.session.Session().region_name or 'us-east-1'
         self.regions = regions or [self.region]
-        self.aa = boto3.client('accessanalyzer', region_name=self.region)
-        self.sts = boto3.client('sts', region_name=self.region)
+        self.max_retries = max_retries
+        self._clients: Dict[str, Any] = {}
+        self.aa = self._get_client(self.region)
+        self.sts = boto3.client('sts', region_name=self.region, config=self.BOTO_CONFIG)
         self.account_id = self.sts.get_caller_identity()['Account']
         self._org_id = None
+        logger.info(f"Initialized AccessAnalyzerClient: account={self.account_id}, region={self.region}")
     
     def _get_client(self, region: str):
-        """Get Access Analyzer client for specific region."""
-        if region == self.region:
-            return self.aa
-        return boto3.client('accessanalyzer', region_name=region)
+        """Get Access Analyzer client for specific region with caching."""
+        if region not in self._clients:
+            self._clients[region] = boto3.client(
+                'accessanalyzer', 
+                region_name=region, 
+                config=self.BOTO_CONFIG
+            )
+        return self._clients[region]
     
     def _get_org_id(self) -> Optional[str]:
         """Get AWS Organization ID if account is part of an org."""
@@ -107,6 +153,7 @@ class AccessAnalyzerClient:
 
     # ==================== ANALYZER MANAGEMENT ====================
 
+    @retry_with_backoff()
     def create_analyzer(
         self,
         analyzer_name: str,
@@ -115,6 +162,8 @@ class AccessAnalyzerClient:
         configuration: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Create an analyzer (CreateAnalyzer API)."""
+        if analyzer_type not in self.ANALYZER_TYPES:
+            raise ValueError(f"Invalid analyzer_type: {analyzer_type}. Must be one of {self.ANALYZER_TYPES}")
         params = {'analyzerName': analyzer_name, 'type': analyzer_type}
         if tags:
             params['tags'] = tags
@@ -123,51 +172,46 @@ class AccessAnalyzerClient:
         elif analyzer_type in ['ACCOUNT_UNUSED_ACCESS', 'ORGANIZATION_UNUSED_ACCESS']:
             params['configuration'] = {'unusedAccess': {'unusedAccessAge': 90}}
         try:
-            return self.aa.create_analyzer(**params)
+            result = self.aa.create_analyzer(**params)
+            logger.info(f"Created analyzer: {analyzer_name} ({analyzer_type})")
+            return result
         except ClientError as e:
-            logger.error("create_analyzer failed: %s", e)
-            return {'error': str(e)}
+            if e.response['Error']['Code'] == 'ConflictException':
+                logger.warning(f"Analyzer {analyzer_name} already exists")
+                return self.get_analyzer(analyzer_name)
+            raise
 
+    @retry_with_backoff()
     def delete_analyzer(self, analyzer_name: str) -> bool:
         """Delete an analyzer (DeleteAnalyzer API)."""
-        try:
-            self.aa.delete_analyzer(analyzerName=analyzer_name)
-            return True
-        except ClientError as e:
-            logger.error("delete_analyzer failed: %s", e)
-            return False
+        self.aa.delete_analyzer(analyzerName=analyzer_name)
+        logger.info(f"Deleted analyzer: {analyzer_name}")
+        return True
 
+    @retry_with_backoff()
     def get_analyzer(self, analyzer_name: str) -> Dict[str, Any]:
         """Get analyzer details (GetAnalyzer API)."""
-        try:
-            return self.aa.get_analyzer(analyzerName=analyzer_name)
-        except ClientError as e:
-            logger.error("get_analyzer failed: %s", e)
-            return {'error': str(e)}
+        return self.aa.get_analyzer(analyzerName=analyzer_name)
 
+    @retry_with_backoff()
     def list_analyzers(self, analyzer_type: str = None) -> List[Dict[str, Any]]:
         """List all analyzers (ListAnalyzers API)."""
-        try:
-            params = {}
-            if analyzer_type:
-                params['type'] = analyzer_type
-            resp = self.aa.list_analyzers(**params)
-            return resp.get('analyzers', [])
-        except ClientError as e:
-            logger.error("list_analyzers failed: %s", e)
-            return []
+        params = {}
+        if analyzer_type:
+            params['type'] = analyzer_type
+        resp = self.aa.list_analyzers(**params)
+        return resp.get('analyzers', [])
 
+    @retry_with_backoff()
     def update_analyzer(
         self,
         analyzer_name: str,
         configuration: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Update analyzer configuration (UpdateAnalyzer API). Only for unused access analyzers."""
-        try:
-            return self.aa.update_analyzer(analyzerName=analyzer_name, configuration=configuration)
-        except ClientError as e:
-            logger.error("update_analyzer failed: %s", e)
-            return {'error': str(e)}
+        result = self.aa.update_analyzer(analyzerName=analyzer_name, configuration=configuration)
+        logger.info(f"Updated analyzer: {analyzer_name}")
+        return result
 
     def ensure_analyzers(self, use_org: bool = False) -> Dict[str, str]:
         """
@@ -181,18 +225,25 @@ class AccessAnalyzerClient:
         # Determine analyzer types based on context
         if use_org and self.is_org_management_account():
             types = ['ORGANIZATION', 'ORGANIZATION_UNUSED_ACCESS']
+            logger.info("Using organization-level analyzers")
         else:
             types = ['ACCOUNT', 'ACCOUNT_UNUSED_ACCESS']
         
         for atype in types:
             name = f"analyzer-{atype.lower().replace('_', '-')}"
-            existing = [a for a in self.list_analyzers(atype) if a['status'] == 'ACTIVE']
-            if existing:
-                analyzers[atype] = existing[0]['arn']
-            else:
-                result = self.create_analyzer(name, atype)
-                if 'arn' in result:
-                    analyzers[atype] = result['arn']
+            try:
+                existing = [a for a in self.list_analyzers(atype) if a['status'] == 'ACTIVE']
+                if existing:
+                    analyzers[atype] = existing[0]['arn']
+                    logger.debug(f"Using existing analyzer: {existing[0]['arn']}")
+                else:
+                    result = self.create_analyzer(name, atype)
+                    if 'arn' in result:
+                        analyzers[atype] = result['arn']
+                    elif 'analyzer' in result:
+                        analyzers[atype] = result['analyzer']['arn']
+            except ClientError as e:
+                logger.error(f"Failed to ensure analyzer {atype}: {e}")
         return analyzers
     
     def ensure_analyzers_all_regions(self, use_org: bool = False) -> Dict[str, Dict[str, str]]:
@@ -218,17 +269,15 @@ class AccessAnalyzerClient:
     def list_findings(self, analyzer_arn: str, filter_criteria: Dict = None) -> List[Dict]:
         """List findings v1 (ListFindings API)."""
         findings = []
-        try:
-            params = {'analyzerArn': analyzer_arn}
-            if filter_criteria:
-                params['filter'] = filter_criteria
-            paginator = self.aa.get_paginator('list_findings')
-            for page in paginator.paginate(**params):
-                findings.extend(page.get('findings', []))
-        except ClientError as e:
-            logger.error("list_findings failed: %s", e)
+        params = {'analyzerArn': analyzer_arn}
+        if filter_criteria:
+            params['filter'] = filter_criteria
+        paginator = self.aa.get_paginator('list_findings')
+        for page in paginator.paginate(**params):
+            findings.extend(page.get('findings', []))
         return findings
 
+    @retry_with_backoff()
     def list_findings_v2(
         self,
         analyzer_arn: str,
@@ -244,30 +293,22 @@ class AccessAnalyzerClient:
             filter_criteria['findingType'] = {'eq': [finding_type]}
         
         findings = []
-        try:
-            paginator = self.aa.get_paginator('list_findings_v2')
-            for page in paginator.paginate(analyzerArn=analyzer_arn, filter=filter_criteria):
-                findings.extend(page.get('findings', []))
-        except ClientError as e:
-            logger.error("list_findings_v2 failed: %s", e)
+        paginator = self.aa.get_paginator('list_findings_v2')
+        for page in paginator.paginate(analyzerArn=analyzer_arn, filter=filter_criteria):
+            findings.extend(page.get('findings', []))
         return findings
 
+    @retry_with_backoff()
     def get_finding(self, analyzer_arn: str, finding_id: str) -> Dict[str, Any]:
         """Get finding details v1 (GetFinding API)."""
-        try:
-            return self.aa.get_finding(analyzerArn=analyzer_arn, id=finding_id)
-        except ClientError as e:
-            logger.error("get_finding failed: %s", e)
-            return {'error': str(e)}
+        return self.aa.get_finding(analyzerArn=analyzer_arn, id=finding_id)
 
+    @retry_with_backoff()
     def get_finding_v2(self, analyzer_arn: str, finding_id: str) -> Dict[str, Any]:
         """Get finding details v2 (GetFindingV2 API)."""
-        try:
-            return self.aa.get_finding_v2(analyzerArn=analyzer_arn, id=finding_id)
-        except ClientError as e:
-            logger.error("get_finding_v2 failed: %s", e)
-            return {'error': str(e)}
+        return self.aa.get_finding_v2(analyzerArn=analyzer_arn, id=finding_id)
 
+    @retry_with_backoff()
     def update_findings(
         self,
         analyzer_arn: str,
@@ -275,23 +316,20 @@ class AccessAnalyzerClient:
         status: str = 'ARCHIVED'
     ) -> bool:
         """Update findings status (UpdateFindings API)."""
-        try:
-            self.aa.update_findings(analyzerArn=analyzer_arn, ids=finding_ids, status=status)
-            return True
-        except ClientError as e:
-            logger.error("update_findings failed: %s", e)
-            return False
+        if status not in ('ACTIVE', 'ARCHIVED'):
+            raise ValueError(f"Invalid status: {status}. Must be ACTIVE or ARCHIVED")
+        self.aa.update_findings(analyzerArn=analyzer_arn, ids=finding_ids, status=status)
+        logger.info(f"Updated {len(finding_ids)} findings to {status}")
+        return True
 
+    @retry_with_backoff()
     def get_findings_statistics(self, analyzer_arn: str) -> Dict[str, Any]:
         """Get aggregated finding statistics (GetFindingsStatistics API)."""
-        try:
-            return self.aa.get_findings_statistics(analyzerArn=analyzer_arn)
-        except ClientError as e:
-            logger.error("get_findings_statistics failed: %s", e)
-            return {'error': str(e)}
+        return self.aa.get_findings_statistics(analyzerArn=analyzer_arn)
 
     # ==================== ARCHIVE RULES ====================
 
+    @retry_with_backoff()
     def create_archive_rule(
         self,
         analyzer_name: str,
