@@ -8,22 +8,54 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please report it by:
+We take security seriously. If you discover a security vulnerability, please follow responsible disclosure:
 
-1. **Do NOT** create a public GitHub issue
-2. Email: khavan.work@gmail.com
-3. Include:
+### Do NOT
+
+- Create a public GitHub issue
+- Disclose the vulnerability publicly before it's fixed
+
+### Do
+
+1. **Email**: khavan.work@gmail.com
+2. **Subject**: `[SECURITY] aws-iam-access-analyzer-solution`
+3. **Include**:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
+   - Suggested fix (if any)
 
-We will respond within 48 hours and work with you to resolve the issue.
+### Response Timeline
+
+- **Initial Response**: Within 48 hours
+- **Status Update**: Within 7 days
+- **Resolution Target**: Within 30 days (depending on severity)
 
 ## Security Best Practices
 
-When using this solution:
+When using this solution, follow these best practices:
 
-- Use IAM roles instead of access keys
-- Enable CloudTrail for audit logging
-- Review Access Analyzer findings regularly
-- Apply least privilege principles
+### Authentication & Authorization
+
+- ✅ Use IAM roles instead of access keys when possible
+- ✅ Apply least privilege principles
+- ✅ Rotate credentials regularly
+- ✅ Use AWS Organizations SCPs for guardrails
+
+### Monitoring & Logging
+
+- ✅ Enable CloudTrail for audit logging
+- ✅ Review Access Analyzer findings regularly
+- ✅ Set up SNS notifications for critical findings
+- ✅ Use CloudWatch alarms for anomaly detection
+
+### Infrastructure
+
+- ✅ Deploy in private subnets when possible
+- ✅ Use VPC endpoints for AWS services
+- ✅ Enable encryption at rest and in transit
+- ✅ Regularly update dependencies
+
+## Acknowledgments
+
+We appreciate security researchers who help keep this project secure. Contributors will be acknowledged (with permission) in release notes.

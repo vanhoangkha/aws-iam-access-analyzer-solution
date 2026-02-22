@@ -5,24 +5,43 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aws-access-analyzer"
 version = "1.0.0"
-description = "AWS IAM Access Analyzer SDK - Complete implementation of all 37 APIs"
+description = "AWS IAM Access Analyzer SDK - Complete implementation of all 37 APIs for security automation"
 readme = "README.md"
 license = {text = "MIT-0"}
 requires-python = ">=3.9"
 authors = [
     {name = "Kha Van", email = "khavan.work@gmail.com"}
 ]
-keywords = ["aws", "iam", "access-analyzer", "security", "policy"]
+maintainers = [
+    {name = "Kha Van", email = "khavan.work@gmail.com"}
+]
+keywords = [
+    "aws",
+    "iam",
+    "access-analyzer",
+    "security",
+    "policy",
+    "compliance",
+    "cloud-security",
+    "devops",
+    "devsecops",
+    "infrastructure-as-code"
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
 ]
 dependencies = [
     "boto3>=1.34.0,<2.0.0",
@@ -33,6 +52,10 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
 ]
 
 [project.scripts]
@@ -40,8 +63,32 @@ access-analyzer = "access_analyzer.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution"
-Documentation = "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html"
-Repository = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution"
+Documentation = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution#readme"
+Repository = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution.git"
+Issues = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution/issues"
+Changelog = "https://github.com/vanhoangkha/aws-iam-access-analyzer-solution/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
