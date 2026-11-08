@@ -37,24 +37,24 @@ When using this solution, follow these best practices:
 
 ### Authentication & Authorization
 
-- ✅ Use IAM roles instead of access keys when possible
-- ✅ Apply least privilege principles
-- ✅ Rotate credentials regularly
-- ✅ Use AWS Organizations SCPs for guardrails
+- Use IAM roles instead of access keys when possible
+- Apply least privilege principles
+- Rotate credentials regularly
+- Use AWS Organizations SCPs for guardrails
 
 ### Monitoring & Logging
 
-- ✅ Enable CloudTrail for audit logging
-- ✅ Review Access Analyzer findings regularly
-- ✅ Set up SNS notifications for critical findings
-- ✅ Use CloudWatch alarms for anomaly detection
+- Enable CloudTrail for audit logging
+- Review Access Analyzer findings regularly
+- Set up SNS notifications for critical findings
+- Use CloudWatch alarms for anomaly detection
 
 ### Infrastructure
 
-- ✅ Deploy in private subnets when possible
-- ✅ Use VPC endpoints for AWS services
-- ✅ Enable encryption at rest and in transit
-- ✅ Regularly update dependencies
+- Deploy in private subnets when possible
+- Use VPC endpoints for AWS services
+- Enable encryption at rest and in transit
+- Regularly update dependencies
 
 ## Acknowledgments
 
