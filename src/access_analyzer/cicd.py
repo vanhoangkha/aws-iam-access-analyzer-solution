@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 CI/CD Policy Validator for IAM Access Analyzer.
 Validates IAM policies in CI/CD pipelines.

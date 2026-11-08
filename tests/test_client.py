@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Unit tests for Access Analyzer Solution."""
 
 from unittest.mock import Mock, patch

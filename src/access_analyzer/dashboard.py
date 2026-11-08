@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Security Dashboard for IAM Access Analyzer.
 Generates reports and metrics from findings.
